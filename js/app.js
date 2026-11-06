@@ -3,7 +3,7 @@
 
 (() => {
   const CONFIG = {
-    APP_VERSION: '0.2.0',
+    APP_VERSION: '0.2.1',
     DATA_URL: 'data/questions.json',
     RULEBOOK_URL: '',          // 公開先が決まったら URL を入れる（空なら「準備中」と表示）
     ROUNDS: 5,
@@ -18,7 +18,9 @@
   const tm = () => (reduceMotion.matches ? 0.35 : 1); // 移動演出の時間倍率
   const vibrate = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch (_) {} };
   const fmt = (n) => n.toLocaleString('en-US');
-  const fmtFor = (n, unit) => (unit === '年' ? String(n) : fmt(n)); // 西暦にはカンマを付けない
+  // 桁区切りのカンマ：問題データで "comma": false のとき、または単位が「年」（西暦）のときは付けない
+  const useComma = (q) => q.comma !== false && q.unit !== '年';
+  const fmtFor = (n, q) => (useComma(q) ? fmt(n) : String(n));
 
   /* ───── 保存 ───── */
   function loadStore() {
@@ -185,6 +187,7 @@
     plateInner: $('#plate .plate-inner'),
     plateQ: $('#plate-q'),
     plateAsof: $('#plate-asof'),
+    plateSource: $('#plate-source'),
     knob: $('#knob'),
     hint: $('#knob-hint'),
     answer: $('#answer'),
@@ -193,6 +196,7 @@
     answerAsof: $('#answer-asof'),
     num: $('#answer-num'),
     note: $('#answer-note'),
+    answerSource: $('#answer-source'),
     shine: $('#shine'),
     borders: $('#borders'),
     rangeSilver: $('#range-silver'),
@@ -250,6 +254,9 @@
     const asOf = formatAsOf(q.asOf);
     el.plateQ.textContent = q.question;
     el.plateAsof.textContent = asOf;
+    el.plateSource.textContent = q.source || '';
+    el.plate.classList.toggle('has-source', !!q.source);
+    el.answerSource.textContent = q.source || '';
     el.answerQText.textContent = q.question;
     el.answerAsof.textContent = asOf;
     el.plateInner.style.visibility = '';
@@ -421,8 +428,9 @@
   }
 
   // 最終的な桁数とカンマの位置を最初から確保する
-  function buildNumber(answer, unit) {
-    const str = fmtFor(answer, unit);
+  function buildNumber(answer, q) {
+    const unit = q.unit;
+    const str = fmtFor(answer, q);
     const slots = [];
     let html = '';
     let lastDigit = -1;
@@ -480,7 +488,7 @@
   function startCount() {
     G.phase = 'counting';
     const a = G.q.answer;
-    buildNumber(a, G.q.unit);
+    buildNumber(a, G.q);
     renderValue(0);
     const D = countDuration(a);
     const t0 = performance.now();
@@ -506,8 +514,8 @@
     // ボーダー（10%・25% を切り捨てて正解値から引いた値と足した値）
     const s10 = Math.floor(a / 10); // 正解×10% の切り捨て（小数の誤差が出ないよう整数で割る）
     const s25 = Math.floor(a / 4);  // 正解×25% の切り捨て
-    el.rangeSilver.innerHTML = rangeHtml(a - s10, a + s10, G.q.unit);
-    el.rangeBronze.innerHTML = rangeHtml(a - s25, a + s25, G.q.unit);
+    el.rangeSilver.innerHTML = rangeHtml(a - s10, a + s10, G.q);
+    el.rangeBronze.innerHTML = rangeHtml(a - s25, a + s25, G.q);
 
     later(() => {
       el.borders.classList.add('is-shown');
@@ -516,8 +524,8 @@
     }, CONFIG.BORDER_DELAY);
   }
 
-  function rangeHtml(lo, hi, unit) {
-    return `${fmtFor(lo, unit)}<span class="tilde">〜</span>${fmtFor(hi, unit)}`;
+  function rangeHtml(lo, hi, q) {
+    return `${fmtFor(lo, q)}<span class="tilde">〜</span>${fmtFor(hi, q)}`;
   }
 
   function escapeHtml(s) {

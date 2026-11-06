@@ -1,5 +1,5 @@
 /* オフライン用キャッシュ。アプリ本体を更新したら CACHE_VERSION を上げる */
-const CACHE_VERSION = 'kinjishi-v0.2.0';
+const CACHE_VERSION = 'kinjishi-v0.2.1';
 const DATA_URL = 'data/questions.json';
 const PRECACHE = [
   './',
@@ -47,10 +47,11 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(networkFirst(req));
     return;
   }
-  // ページ本体：オフラインならキャッシュの index.html
+  // ページ本体：CSS・JS と同じく「キャッシュを即座に返し、裏で更新」にそろえる。
+  // HTML だけ新しく JS・CSS は古い、という食い違いを防ぐため（更新は次回起動からまとめて反映）
   if (req.mode === 'navigate') {
     event.respondWith(
-      networkFirst(req).catch(() => caches.match('index.html'))
+      staleWhileRevalidate(req, event).catch(() => caches.match('index.html'))
     );
     return;
   }
