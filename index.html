@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#3E0D19">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="金獅子">
+<meta name="description" content="ボードゲーム『近似値の金獅子』の問題表示アプリ">
+<title>近似値の金獅子</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="img/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="preload" href="fonts/ZenAntique-subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/BodoniModa-subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/app.css">
+<script src="js/app.js" defer></script>
+</head>
+<body>
+<div id="app">
+
+  <!-- タイトル -->
+  <section class="screen screen-title" id="screen-title" data-screen="title">
+    <div class="title-inner">
+      <img class="title-emblem" src="img/lion_gold.svg" alt="" width="1000" height="1000">
+      <div class="title-text">
+        <p class="title-kicker">近似値ボードゲーム</p>
+        <h1 class="title-logo">近似値の<span>金獅子</span></h1>
+        <div class="title-actions">
+          <button class="btn btn-gold btn-lg" data-action="start">ゲーム開始</button>
+          <div class="btn-row">
+            <button class="btn btn-ghost" data-action="rulebook">ルールブック</button>
+            <button class="btn btn-ghost" data-action="settings">設定</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- チュートリアル -->
+  <section class="screen screen-tutorial" id="screen-tutorial" data-screen="tutorial">
+    <div class="tut-card">
+      <div class="tut-pages">
+        <article class="tut-page" data-page="0">
+          <div class="tut-visual tut-visual-table" aria-hidden="true">
+            <div class="tut-device"><span class="lion" data-lion="gold"></span></div>
+          </div>
+          <div class="tut-copy">
+            <h2>端末をテーブルの中央に</h2>
+            <p>この端末1台を、全員から見える場所に置きます。1ゲームは5問。進行役の代わりに、アプリが問題を出して正解を預かります。</p>
+          </div>
+        </article>
+        <article class="tut-page" data-page="1">
+          <div class="tut-visual tut-visual-write" aria-hidden="true">
+            <div class="tut-question">成人の人体にある<br>骨の数は？</div>
+            <div class="tut-memo"><span>200</span><span>180</span><span>230</span></div>
+          </div>
+          <div class="tut-copy">
+            <h2>問題を読んで、数字を書く</h2>
+            <p>問題が出たら、各自が手元のカードに答えの数字を書きます。ぴったりでなくても大丈夫。近ければ近いほど良い答えです。</p>
+          </div>
+        </article>
+        <article class="tut-page" data-page="2">
+          <div class="tut-visual tut-visual-swipe" aria-hidden="true">
+            <div class="demo-frame">
+              <div class="demo-answer"><span>206</span></div>
+              <div class="demo-cage">
+                <div class="demo-plate">骨の数は？</div>
+                <img class="demo-knob" src="img/lion_gold.svg" alt="">
+              </div>
+              <div class="demo-finger"></div>
+            </div>
+          </div>
+          <div class="tut-copy">
+            <h2>金獅子を上へ引き上げる</h2>
+            <p>全員が書けたら、問題欄の下の<strong>金獅子</strong>に指をのせ、上へスワイプします。檻が上がり、正解が現れます。</p>
+          </div>
+        </article>
+        <article class="tut-page" data-page="3">
+          <div class="tut-visual tut-visual-judge" aria-hidden="true">
+            <ul class="judge-list">
+              <li><img src="img/lion_gold.svg" alt=""><b>金獅子</b><span>ピタリ</span></li>
+              <li><img src="img/lion_silver.svg" alt=""><b>銀獅子</b><span>誤差10%以内</span></li>
+              <li><img src="img/lion_bronze.svg" alt=""><b>銅獅子</b><span>誤差25%以内</span></li>
+              <li><img src="img/lion_black.svg" alt=""><b>黒獅子</b><span>それより外</span></li>
+            </ul>
+          </div>
+          <div class="tut-copy">
+            <h2>自分で判定する</h2>
+            <p>正解の下に、銀獅子・銅獅子の範囲が表示されます。自分の答えと見比べて判定し、得点はカードで管理しましょう。</p>
+          </div>
+        </article>
+      </div>
+      <div class="tut-nav">
+        <button class="btn btn-text" data-action="tut-skip">スキップ</button>
+        <div class="tut-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <button class="btn btn-gold" data-action="tut-next">次へ</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- セット選択 -->
+  <section class="screen screen-sets" id="screen-sets" data-screen="sets">
+    <header class="bar">
+      <button class="btn btn-text" data-action="title">← 戻る</button>
+      <h2 class="bar-title">セットを選ぶ</h2>
+      <span class="bar-spacer"></span>
+    </header>
+    <div class="sets-body">
+      <p class="sets-lead">1セット5問。好きなセットを選んでください。</p>
+      <div class="sets-grid" id="sets-grid"></div>
+    </div>
+  </section>
+
+  <!-- ゲーム -->
+  <section class="screen screen-game" id="screen-game" data-screen="game">
+    <header class="bar game-bar">
+      <button class="btn btn-text" data-action="abort">✕ 中断</button>
+      <div class="round" aria-live="polite">
+        <span class="round-set" id="round-set"></span>
+        <span class="round-num"><b id="round-cur">1</b><i>/</i><span id="round-total">5</span></span>
+      </div>
+      <button class="btn btn-text" data-action="retry" id="btn-retry" disabled>↺ もう一度</button>
+    </header>
+
+    <div class="stage" id="stage">
+      <div class="frame" id="frame">
+        <!-- 正解表示欄（檻の後ろ） -->
+        <div class="answer" id="answer" aria-live="polite">
+          <span class="lion answer-watermark" data-lion="gold" id="watermark"></span>
+          <div class="answer-q" id="answer-q">
+            <p class="answer-q-text" id="answer-q-text"></p>
+            <p class="as-of" id="answer-asof"></p>
+          </div>
+          <div class="answer-main">
+            <div class="answer-num" id="answer-num"></div>
+          </div>
+          <p class="answer-note" id="answer-note"></p>
+          <div class="shine" id="shine"></div>
+        </div>
+
+        <!-- 獅子の檻 -->
+        <div class="cage" id="cage">
+          <div class="cage-bars"></div>
+          <div class="cage-rail cage-rail-top"></div>
+          <div class="cage-rail cage-rail-bottom"></div>
+          <div class="plate" id="plate">
+            <div class="plate-inner">
+              <p class="plate-q" id="plate-q"></p>
+              <p class="as-of" id="plate-asof"></p>
+            </div>
+          </div>
+          <div class="knob-row">
+            <button class="knob" id="knob" aria-label="金獅子を引き上げて正解を開く（Enter または Space）">
+              <img src="img/lion_gold.svg" alt="" draggable="false">
+            </button>
+            <span class="knob-hint" id="knob-hint" aria-hidden="true">↑ 金獅子を引き上げる</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="game-foot">
+      <div class="borders" id="borders" aria-live="polite">
+        <div class="border-row border-silver">
+          <span class="lion" data-lion="silver"></span>
+          <span class="border-label">銀獅子<small>±10%</small></span>
+          <span class="border-range" id="range-silver"></span>
+        </div>
+        <div class="border-row border-bronze">
+          <span class="lion" data-lion="bronze"></span>
+          <span class="border-label">銅獅子<small>±25%</small></span>
+          <span class="border-range" id="range-bronze"></span>
+        </div>
+      </div>
+      <div class="foot-actions">
+        <button class="btn btn-gold" data-action="next" id="btn-next">次の問題 →</button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- 終了 -->
+  <section class="screen screen-end" id="screen-end" data-screen="end">
+    <div class="end-inner">
+      <img class="end-emblem" src="img/lion_gold.svg" alt="" width="1000" height="1000">
+      <p class="end-kicker" id="end-set"></p>
+      <h2 class="end-title">全5問、終了</h2>
+      <p class="end-lead">おつかれさまでした。カードで得点を集計しましょう。</p>
+      <div class="btn-row">
+        <button class="btn btn-gold" data-action="title">タイトルへ戻る</button>
+        <button class="btn btn-ghost" data-action="start">別のセットで遊ぶ</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 設定 -->
+  <section class="screen screen-settings" id="screen-settings" data-screen="settings">
+    <header class="bar">
+      <button class="btn btn-text" data-action="title">← 戻る</button>
+      <h2 class="bar-title">設定</h2>
+      <span class="bar-spacer"></span>
+    </header>
+    <div class="settings-body">
+      <ul class="settings-list">
+        <li><button class="setting" data-action="tutorial"><span>遊び方（チュートリアル）を見る</span><i>›</i></button></li>
+        <li><button class="setting" data-action="rulebook"><span>ルールブックを開く</span><i>›</i></button></li>
+        <li><button class="setting" data-action="reshuffle"><span>問題セットを組み直す</span><i>›</i></button></li>
+      </ul>
+      <p class="settings-meta" id="settings-meta"></p>
+    </div>
+  </section>
+</div>
+
+<dialog class="modal" id="modal">
+  <form method="dialog">
+    <p class="modal-text" id="modal-text"></p>
+    <div class="btn-row">
+      <button class="btn btn-ghost" value="cancel">やめる</button>
+      <button class="btn btn-gold" value="ok" id="modal-ok">OK</button>
+    </div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<!-- 獅子アイコン（線画）。色は CSS の color、目・鼻などは --lion-feature で指定 -->
+<template id="tpl-lion"><svg class="lion-svg" viewBox="0 0 1000 1000" aria-hidden="true" focusable="false"><g class="l-bezel"><circle cx="500" cy="500" r="476" fill="none" stroke="currentColor" stroke-width="18"/><line x1="500" y1="38" x2="500" y2="75" stroke="currentColor" stroke-width="14" stroke-linecap="round"/><line x1="731" y1="99.9" x2="712.5" y2="131.9" stroke="currentColor" stroke-width="14" stroke-linecap="round"/><line x1="900.1" y1="269" x2="868.1" y2="287.5" stroke="currentColor" stroke-width="14" stroke-linecap="round"/><line x1="962" y1="500" x2="925" y2="500" stroke="currentColor" stroke-width="14" stroke-linecap="round"/><line x1="900.1" y1="731" x2="868.1" y2="712.5" stroke="currentColor" stroke-width="14" stroke-linecap="round"/><line x1="731" y1="900.1" x2="712.5" y2="868.1" stroke="currentColor" stroke-width="14" stroke-linecap="round"/><line x1="500" y1="962" x2="500" y2="925" stroke="currentColor" stroke-width="14" stroke-linecap="round"/><line x1="269" y1="900.1" x2="287.5" y2="868.1" stroke="currentColor" stroke-width="14" stroke-linecap="round"/><line x1="99.9" y1="731" x2="131.9" y2="712.5" stroke="currentColor" stroke-width="14" stroke-linecap="round"/><line x1="38" y1="500" x2="75" y2="500" stroke="currentColor" stroke-width="14" stroke-linecap="round"/><line x1="99.9" y1="269" x2="131.9" y2="287.5" stroke="currentColor" stroke-width="14" stroke-linecap="round"/><line x1="269" y1="99.9" x2="287.5" y2="131.9" stroke="currentColor" stroke-width="14" stroke-linecap="round"/></g><g class="l-mane-outer"><path d="M500,200 L630,105.9 L614.8,222.8 L770.9,185.6 L712.1,287.9 L870.6,313.2 L777.2,385.2 L913.9,469.2 L800,500 L894.1,630 L777.2,614.8 L814.4,770.9 L712.1,712.1 L686.8,870.6 L614.8,777.2 L530.8,913.9 L500,800 L370,894.1 L385.2,777.2 L229.1,814.4 L287.9,712.1 L129.4,686.8 L222.8,614.8 L86.1,530.8 L200,500 L105.9,370 L222.8,385.2 L185.6,229.1 L287.9,287.9 L313.2,129.4 L385.2,222.8 L469.2,86.1 L500,200" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/></g><g class="l-mane-inner"><path d="M381.2,281.9 L415.2,231.1 L453.6,266.6 L524.6,219.1 L546.4,266.6 L630.2,249.9 L631.2,276.3" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M681.8,311.9 L716,318.7 L697.9,367.8 L768.9,415.2 L733.4,453.6 L780.9,524.6 L733.4,546.4 L750.1,630.2 L697.9,632.2 L681.3,716 L632.2,697.9 L584.8,768.9 L546.4,733.4 L475.4,780.9 L453.6,733.4 L369.8,750.1 L367.8,697.9 L284,681.3 L302.1,632.2 L231.1,584.8 L266.6,546.4 L219.1,475.4 L266.6,453.6 L249.9,369.8 L302.1,367.8 L318.7,284 L320,284.5" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></g><g class="l-ears"><path d="M315,360 L322,255 L410,295 L315,360" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/><path d="M685,360 L678,255 L590,295 L685,360" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/></g><g class="l-sideburns"></g><g class="l-face"><path d="M420,295 L580,295 L650,360 L678,455 L665,540 L615,625 L558,690 L442,690 L385,625 L335,540 L322,455 L350,360 L420,295" fill="none" stroke="currentColor" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/><polygon points="500,318 526,355 500,392 474,355" class="lf"/></g><g class="l-brow"><polygon points="350,430 405,400 475,422 500,455 525,422 595,400 650,430 640,452 595,430 530,448 500,485 470,448 405,430 360,452" class="lf"/></g><g class="l-eyes"><polygon points="372,470 412,448 458,466 414,484" class="lf"/><polygon points="628,470 588,448 542,466 586,484" class="lf"/></g><g class="l-nose"><polygon points="448,538 552,538 542,558 500,588 458,558" class="lf"/></g><g class="l-muzzle"><path d="M500,595.9 L501.4,594 L504.3,591 L507.7,588.2 L511.6,585.8 L516,583.8 L520.7,582.1 L525.6,581 L530.8,580.2 L536,580 L541.2,580.2 L546.4,581 L551.3,582.1 L556,583.8 L560.4,585.8 L564.3,588.2 L567.7,591 L570.6,594 L573,597.3 L574.6,600.8 L575.7,604.3 L576,608 L575.7,611.7 L574.6,615.2 L573,618.7 L570.6,622 L567.7,625 L564.3,627.8 L560.4,630.2 L556,632.2 L551.3,633.9 L546.4,635 L541.2,635.8 L536,636 L530.8,635.8 L525.6,635 L520.7,633.9 L516,632.2 L511.6,630.2 L507.7,627.8 L504.3,625 L501.4,622 L500,620.1" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M504,608 L503.7,611.7 L502.6,615.2 L501,618.7 L498.6,622 L495.7,625 L492.3,627.8 L488.4,630.2 L484,632.2 L479.3,633.9 L474.4,635 L469.2,635.8 L464,636 L458.8,635.8 L453.6,635 L448.7,633.9 L444,632.2 L439.6,630.2 L435.7,627.8 L432.3,625 L429.4,622 L427,618.7 L425.4,615.2 L424.3,611.7 L424,608 L424.3,604.3 L425.4,600.8 L427,597.3 L429.4,594 L432.3,591 L435.7,588.2 L439.6,585.8 L444,583.8 L448.7,582.1 L453.6,581 L458.8,580.2 L464,580 L469.2,580.2 L474.4,581 L479.3,582.1 L484,583.8 L488.4,585.8 L492.3,588.2 L495.7,591 L498.6,594 L501,597.3 L502.6,600.8 L503.7,604.3 L504,608" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></g></svg></template>
+</body>
+</html>
