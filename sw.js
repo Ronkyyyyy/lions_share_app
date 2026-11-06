@@ -1,5 +1,5 @@
 /* オフライン用キャッシュ。アプリ本体を更新したら CACHE_VERSION を上げる */
-const CACHE_VERSION = 'kinjishi-v0.2.1';
+const CACHE_VERSION = 'kinjishi-v0.3.0';
 const DATA_URL = 'data/questions.json';
 const PRECACHE = [
   './',

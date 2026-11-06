@@ -53,16 +53,30 @@
           </div>
         </article>
         <article class="tut-page" data-page="1">
-          <div class="tut-visual tut-visual-write" aria-hidden="true">
-            <div class="tut-question">成人の人体にある<br>骨の数は？</div>
-            <div class="tut-memo"><span>200</span><span>180</span><span>230</span></div>
+          <div class="tut-visual tut-visual-judge" aria-hidden="true">
+            <ul class="judge-list">
+              <li><img src="img/lion_silver.svg" alt=""><b>銀ゾーン</b><span>一番上のカードが得点</span></li>
+              <li><img src="img/lion_bronze.svg" alt=""><b>銅ゾーン</b><span>一番上のカードが得点</span></li>
+              <li><img src="img/lion_black.svg" alt=""><b>黒ゾーン</b><span>一番上のカードが得点</span></li>
+              <li><img src="img/lion_gold.svg" alt=""><b>金獅子ポット</b><span>沈めたカードの合計</span></li>
+            </ul>
           </div>
           <div class="tut-copy">
-            <h2>問題を読んで、数字を書く</h2>
-            <p>問題が出たら、各自が手元のカードに答えの数字を書きます。ぴったりでなくても大丈夫。近ければ近いほど良い答えです。</p>
+            <h2>問題を見て、入札する</h2>
+            <p>問題が出たら、順番に手札のスコアカードを銀・銅・黒のゾーンに1枚出すか、パスします。カードは上に重ねていき、得点になるのは一番上の1枚だけ。パスするときは、手札を1枚<strong>金獅子ポット</strong>に沈めます。</p>
           </div>
         </article>
         <article class="tut-page" data-page="2">
+          <div class="tut-visual tut-visual-write" aria-hidden="true">
+            <div class="tut-question">成人の人体にある<br>骨の数は？</div>
+            <div class="tut-memo"><span>206</span><span>180</span><span>300</span></div>
+          </div>
+          <div class="tut-copy">
+            <h2>答えの数字を書く</h2>
+            <p>全員がパスしたら、各自が手元のメモに答えの数字を書きます。狙うのはピタリだけではありません。良いカードが乗ったゾーンに入るよう、<strong>わざと外す</strong>のも作戦です。</p>
+          </div>
+        </article>
+        <article class="tut-page" data-page="3">
           <div class="tut-visual tut-visual-swipe" aria-hidden="true">
             <div class="demo-frame">
               <div class="demo-answer"><span>206</span></div>
@@ -78,7 +92,7 @@
             <p>全員が書けたら、問題欄の下の<strong>金獅子</strong>に指をのせ、上へスワイプします。檻が上がり、正解が現れます。</p>
           </div>
         </article>
-        <article class="tut-page" data-page="3">
+        <article class="tut-page" data-page="4">
           <div class="tut-visual tut-visual-judge" aria-hidden="true">
             <ul class="judge-list">
               <li><img src="img/lion_gold.svg" alt=""><b>金獅子</b><span>ピタリ</span></li>
@@ -89,13 +103,13 @@
           </div>
           <div class="tut-copy">
             <h2>自分で判定する</h2>
-            <p>正解の下に、銀獅子・銅獅子の範囲が表示されます。自分の答えと見比べて判定し、得点はカードで管理しましょう。</p>
+            <p>正解の下に、銀獅子・銅獅子の範囲が表示されます。自分の答えと見比べて入ったゾーンを判定し、そのゾーンの一番上のカードを得点にします。ピタリなら金獅子ポットの合計を獲得。誰もいなければポットは次の問題へ持ち越しです。</p>
           </div>
         </article>
       </div>
       <div class="tut-nav">
         <button class="btn btn-text" data-action="tut-skip">スキップ</button>
-        <div class="tut-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <div class="tut-dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
         <button class="btn btn-gold" data-action="tut-next">次へ</button>
       </div>
     </div>
@@ -138,7 +152,6 @@
             <div class="answer-num" id="answer-num"></div>
           </div>
           <p class="answer-note" id="answer-note"></p>
-          <p class="q-source answer-source" id="answer-source"></p>
           <div class="shine" id="shine"></div>
         </div>
 
