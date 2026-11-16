@@ -3,7 +3,7 @@
 
 (() => {
   const CONFIG = {
-    APP_VERSION: '0.4.0',
+    APP_VERSION: '0.4.1',
     DEMO_URL: 'data/demo-pack.json', // アプリに同梱する体験パック（購入パックは .lish で読み込む）
     RULEBOOK_URL: '',          // 外部サイトで開きたいときだけ URL を入れる（空ならアプリ内で表示）
     RULEBOOK_MD: 'rulebook.md', // アプリ内で表示するルールブック（差し替えるだけで更新される）
@@ -123,6 +123,51 @@
     if (!buildSets(p, false).length) fail('問題セットを組めませんでした');
   }
 
+  /* ───── zip の中の .lish を取り出す ─────
+     BOOTH では .lish をそのまま置けないため、パックは zip に包んで配る。
+     zip をそのまま選んでも、解凍して中の .lish を選んでも読み込める */
+  async function readPackFile(file) {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const isZip = buf[0] === 0x50 && buf[1] === 0x4b && buf[2] === 0x03 && buf[3] === 0x04;
+    if (!isZip) return new TextDecoder().decode(buf);
+    return extractLishFromZip(buf);
+  }
+
+  async function extractLishFromZip(buf) {
+    const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    // 末尾から「中央ディレクトリの終わり」を探す
+    let eocd = -1;
+    for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) {
+      if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) fail('zip ファイルが壊れています');
+    const count = dv.getUint16(eocd + 10, true);
+    let p = dv.getUint32(eocd + 16, true);
+    for (let n = 0; n < count; n++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) fail('zip ファイルが壊れています');
+      const method = dv.getUint16(p + 10, true);
+      const csize = dv.getUint32(p + 20, true);
+      const nameLen = dv.getUint16(p + 28, true);
+      const extraLen = dv.getUint16(p + 30, true);
+      const commentLen = dv.getUint16(p + 32, true);
+      const local = dv.getUint32(p + 42, true);
+      const name = new TextDecoder().decode(buf.subarray(p + 46, p + 46 + nameLen));
+      p += 46 + nameLen + extraLen + commentLen;
+      const base = name.split('/').pop();
+      if (!/\.lish$/i.test(base) || base.startsWith('._') || name.startsWith('__MACOSX/')) continue;
+      const start = local + 30 + dv.getUint16(local + 26, true) + dv.getUint16(local + 28, true);
+      const data = buf.subarray(start, start + csize);
+      if (method === 0) return new TextDecoder().decode(data);
+      if (method === 8) {
+        if (typeof DecompressionStream !== 'function') fail('この端末では zip を開けません。zip を解凍して、中の .lish ファイルを選んでください');
+        const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+        return await new Response(stream).text();
+      }
+      fail('この zip の形式には対応していません。zip を解凍して、中の .lish ファイルを選んでください');
+    }
+    fail('zip の中に『近似値の金獅子』のパック（.lish）が見つかりません');
+  }
+
   const importInput = document.createElement('input');
   importInput.type = 'file'; // accept は付けない（iPhone で独自の拡張子が選べなくなるため）
   importInput.hidden = true;
@@ -132,7 +177,7 @@
     importInput.value = '';
     if (!file) return;
     try {
-      const p = decodeLish(await file.text());
+      const p = decodeLish(await readPackFile(file));
       validatePack(p);
       if (builtinPack && builtinPack.pack === p.pack) fail('体験パックと同じIDのパックは読み込めません');
       const old = imported[p.pack];
