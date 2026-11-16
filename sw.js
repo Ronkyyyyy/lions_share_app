@@ -1,5 +1,5 @@
 /* オフライン用キャッシュ。アプリ本体を更新したら CACHE_VERSION を上げる */
-const CACHE_VERSION = 'kinjishi-v0.4.0';
+const CACHE_VERSION = 'kinjishi-v0.4.1';
 const DATA_URL = 'data/demo-pack.json'; // 体験パック（購入パックは端末に保存されるので対象外）
 const RULEBOOK_URL = 'rulebook.md';
 const PRECACHE = [
