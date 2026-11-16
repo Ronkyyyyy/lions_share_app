@@ -21,7 +21,7 @@
 /* 版ずれの自動修復：キャッシュに古い app.js が残り、HTML と食い違ったときは
    キャッシュを消して1回だけ読み込み直す。APP_VERSION を上げたらここも合わせる */
 window.addEventListener('load', function () {
-  var expected = '0.4.0';
+  var expected = '0.4.1';
   if (window.KINJISHI_APP_VERSION === expected) return;
   try {
     if (sessionStorage.getItem('kinjishi-heal') === expected) return;
@@ -142,7 +142,7 @@ window.addEventListener('load', function () {
       <ul class="pack-list" id="pack-list"></ul>
       <div class="pack-import">
         <button class="btn btn-ghost" data-action="import">＋ パックを読み込む</button>
-        <p class="pack-import-note">BOOTHで購入した問題パック（.lish）を読み込めます。<br>読み込んだパックは、この端末に保存されます。</p>
+        <p class="pack-import-note">BOOTHで購入した問題パック（zip のままでOK）を読み込めます。<br>読み込んだパックは、この端末に保存されます。</p>
       </div>
     </div>
   </section>
