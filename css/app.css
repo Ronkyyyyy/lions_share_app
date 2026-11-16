@@ -2,7 +2,7 @@
 
 @font-face {
   font-family: "Zen Antique";
-  src: url("../fonts/ZenAntique-subset.woff2") format("woff2");
+  src: url("../fonts/ZenAntique-Regular.woff") format("woff"); /* 全文字収録版 */
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -305,6 +305,83 @@ p, h1, h2 { margin: 0; }
 /* ───── セット選択 ───── */
 .sets-body { flex: 1; overflow-y: auto; padding: 8px 4px 16px; -webkit-overflow-scrolling: touch; }
 .sets-lead { text-align: center; color: var(--ivory-dim); margin: 4px 0 16px; font-size: clamp(14px, 2vmin + 6px, 18px); }
+
+/* 収録パックの札（セット選択画面） */
+.pack-badge {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: .7em;
+  margin: 4px auto 8px;
+  padding: .32em 1.1em .32em 1.2em;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 3px rgba(201, 160, 74, .12);
+  font-size: clamp(14px, 1.6vmin + 8px, 18px);
+  line-height: 1.4;
+}
+.pack-badge:empty { display: none; }
+
+/* パック選択 */
+.pack-list { list-style: none; margin: 4px auto 0; padding: 0; max-width: 760px; display: grid; gap: 12px; }
+.pack-card { display: flex; align-items: stretch; gap: 8px; }
+.pack-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #5a1626, #45101d);
+  color: var(--ivory);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .15s, border-color .2s;
+}
+.pack-main:hover { border-color: var(--gold); }
+.pack-main:active { transform: scale(.98); }
+.pack-main:focus-visible, .pack-del:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 3px; }
+.pack-main .lion { width: 52px; height: 52px; flex: none; }
+.pack-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pack-title { font-size: clamp(17px, 1.6vmin + 10px, 21px); letter-spacing: .1em; }
+.pack-card-id {
+  margin-left: .7em;
+  padding-left: .7em;
+  border-left: 1px solid rgba(201, 160, 74, .5);
+  color: var(--gold);
+  font-family: var(--font-num);
+  font-size: .78em;
+  letter-spacing: .14em;
+}
+.pack-sub { color: var(--ivory-dim); font-size: 13px; letter-spacing: .04em; }
+.pack-card.is-builtin .pack-main { background: linear-gradient(180deg, #4b1220, #3a0e18); }
+.pack-del {
+  flex: none;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ivory-dim);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.pack-del:hover { color: var(--ivory); border-color: var(--gold); }
+.pack-empty { text-align: center; color: var(--ivory-dim); padding: 24px 0; }
+.pack-import { max-width: 760px; margin: 22px auto 0; text-align: center; }
+.pack-import-note { margin: 12px 0 0; color: var(--ivory-dim); font-size: 13px; line-height: 1.8; }
+.pack-name { color: var(--ivory); letter-spacing: .12em; }
+.pack-id {
+  padding-left: .7em;
+  border-left: 1px solid rgba(201, 160, 74, .5);
+  color: var(--gold);
+  font-family: var(--font-num);
+  font-size: .85em;
+  letter-spacing: .14em;
+}
 .sets-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -563,8 +640,7 @@ p, h1, h2 { margin: 0; }
 .q-source:empty { display: none; }
 .plate-source { color: var(--bordeaux); }
 .plate.has-source .plate-inner { padding-bottom: calc(clamp(10px, 1.4vmin + 4px, 14px) * 2.4); }
-.answer-source { z-index: 1; color: #5b4b40; transition: color .6s; }
-.answer.is-confirmed .answer-source { color: var(--gold); }
+/* 出典・補足はプレートにだけ表示し、開示で檻と一緒に消える（正解欄には出さない） */
 
 .knob-row {
   position: absolute;
@@ -690,6 +766,55 @@ p, h1, h2 { margin: 0; }
 .setting:active { background: rgba(110, 27, 44, .8); }
 .setting i { font-style: normal; color: var(--gold); font-size: 1.4em; }
 .settings-meta { margin-top: 18px; text-align: center; color: var(--ivory-dim); font-size: 13px; line-height: 1.8; }
+
+/* ルールブック：ボルドーの上にアイボリーの紙面を1枚置く */
+.rulebook-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 8px 0 24px;
+}
+.rulebook-page {
+  max-width: 760px;
+  margin: 0 auto;
+  background: var(--ivory);
+  color: var(--ink);
+  border-radius: 14px;
+  padding: clamp(20px, 4vmin + 8px, 48px) clamp(18px, 5vmin, 56px);
+  box-shadow: 0 0 0 1px var(--gold), 0 0 0 5px var(--bordeaux-deep), 0 0 0 6px var(--line), 0 12px 30px rgba(0, 0, 0, .35);
+  font-size: clamp(14px, 1.2vmin + 10px, 17px);
+  line-height: 1.95;
+  letter-spacing: .02em;
+  word-break: auto-phrase;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.rulebook-page > :first-child { margin-top: 0; }
+.rulebook-page h2 {
+  margin: 2.2em 0 .7em;
+  padding-bottom: .35em;
+  border-bottom: 1px solid var(--gold);
+  color: var(--bordeaux);
+  font-size: 1.45em;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: .08em;
+}
+.rulebook-page h3 { margin: 1.8em 0 .5em; color: var(--bordeaux); font-size: 1.18em; font-weight: 400; line-height: 1.5; }
+.rulebook-page h3::before { content: "◆"; margin-right: .45em; color: var(--gold); font-size: .7em; vertical-align: .15em; }
+.rulebook-page h4, .rulebook-page h5 { margin: 1.4em 0 .4em; font-size: 1.05em; font-weight: 400; color: var(--gold-dark); }
+.rulebook-page p { margin: .6em 0; }
+.rulebook-page ul, .rulebook-page ol { margin: .5em 0; padding-left: 1.5em; }
+.rulebook-page li { margin: .25em 0; }
+.rulebook-page li::marker { color: var(--gold-dark); }
+.rulebook-page li > ul, .rulebook-page li > ol { margin: .2em 0 .4em; }
+.rulebook-page strong { font-weight: 400; color: var(--bordeaux); background: linear-gradient(transparent 62%, rgba(201, 160, 74, .32) 62%); }
+.rulebook-page em { font-style: normal; color: #6b5a4c; font-size: .94em; }
+.rulebook-page code { font-family: var(--font-num); }
+.rulebook-page hr { margin: 2em auto; width: 40%; border: 0; border-top: 1px solid var(--gold); }
+.rb-status { text-align: center; color: #6b5a4c; margin: 2em 0; }
 
 /* ───── モーダル・トースト ───── */
 .modal {

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>パック作成ツール｜近似値の金獅子</title>
+<style>
+  :root { --bg: #3E0D19; --panel: #4b1220; --ivory: #F2E9D6; --dim: #c9b9a4; --gold: #C9A04A; --gold-l: #EFD58A; --ok: #9fd39a; --ng: #ff9b8a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ivory); font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; line-height: 1.8; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 20px 60px; }
+  h1 { margin: 0 0 4px; color: var(--gold-l); font-weight: 400; letter-spacing: .1em; font-size: 24px; }
+  .lead { color: var(--dim); margin: 0 0 24px; font-size: 14px; }
+  .drop { border: 1px dashed var(--gold); border-radius: 14px; padding: 28px 20px; text-align: center; background: var(--panel); cursor: pointer; }
+  .drop.is-over { background: #5a1626; }
+  .drop input { display: none; }
+  .drop b { color: var(--gold-l); font-weight: 400; }
+  section { margin-top: 24px; }
+  h2 { font-size: 17px; font-weight: 400; color: var(--gold-l); border-bottom: 1px solid rgba(201,160,74,.4); padding-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td, th { padding: 6px 8px; border-bottom: 1px solid rgba(201,160,74,.2); text-align: left; font-weight: 400; }
+  th { color: var(--dim); width: 34%; }
+  ul { margin: 0; padding-left: 1.3em; font-size: 14px; }
+  .ok { color: var(--ok); } .ng { color: var(--ng); }
+  button { margin-top: 18px; padding: 12px 28px; border: 0; border-radius: 999px; background: linear-gradient(180deg, var(--gold-l), var(--gold)); color: var(--bg); font: inherit; font-size: 16px; cursor: pointer; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .note { color: var(--dim); font-size: 13px; margin-top: 10px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>パック作成ツール</h1>
+  <p class="lead">問題データ（JSON）から、購入者向けのパックのファイル（.lish）を作ります。このページは手元のブラウザだけで動き、データをどこにも送信しません。</p>
+
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept=".json,application/json">
+    <b>問題データのJSONを選ぶ</b><br>ここにドラッグ＆ドロップしてもOKです
+  </label>
+
+  <section id="result" hidden>
+    <h2>パックの内容</h2>
+    <table id="summary"></table>
+    <h2>チェック結果</h2>
+    <ul id="checks"></ul>
+    <button id="download" disabled>.lish をダウンロード</button>
+    <p class="note" id="dl-note"></p>
+  </section>
+</main>
+
+<script>
+'use strict';
+/* アプリ（js/app.js）の decodeLish と対になる変換。ここを変えたらアプリ側も合わせて変える */
+const ROUNDS = 5;
+const LISH_KEY = new TextEncoder().encode("lion's share");
+const lishMask = (i) => LISH_KEY[i % LISH_KEY.length] ^ ((i * 131 + 7) & 0xff);
+function fnv1a(bytes) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < bytes.length; i++) { h ^= bytes[i]; h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16).padStart(8, '0');
+}
+function encodeLish(obj) {
+  const raw = new TextEncoder().encode(JSON.stringify(obj));
+  let bin = '';
+  for (let i = 0; i < raw.length; i++) bin += String.fromCharCode(raw[i] ^ lishMask(i));
+  const b64 = btoa(bin).match(/.{1,76}/g).join('\n');
+  return `LISH1 ${fnv1a(raw)}\n${b64}\n`;
+}
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let pack = null;
+
+function check(p) {
+  const errors = [], warns = [], oks = [];
+  if (!p.pack) errors.push('パックID（pack）がありません');
+  if (!p.version) errors.push('データの版（version）がありません');
+  if (!p.packName) warns.push('パックの名前（packName）がありません。画面にはパックIDが表示されます');
+  if (!Array.isArray(p.questions) || !p.questions.length) { errors.push('問題（questions）がありません'); return { errors, warns, oks }; }
+  if (!Array.isArray(p.rounds) || p.rounds.length !== ROUNDS) errors.push(`ラウンドの枠（rounds）は${ROUNDS}つ必要です`);
+
+  const ids = new Set();
+  p.questions.forEach((q, i) => {
+    const where = q && q.id ? q.id : `${i + 1}問目`;
+    if (!q.id) errors.push(`${where}：id がありません`);
+    else if (ids.has(q.id)) errors.push(`${where}：id が重複しています`);
+    else ids.add(q.id);
+    if (q.id && p.pack && !q.id.startsWith(p.pack + '-')) warns.push(`${where}：id がパックID「${p.pack}-」で始まっていません`);
+    if (typeof q.question !== 'string' || !q.question) errors.push(`${where}：問題文（question）がありません`);
+    if (!Number.isSafeInteger(q.answer) || q.answer < 0) errors.push(`${where}：正解（answer）が自然数ではありません（引用符で囲んでいないか確認）`);
+    if (typeof q.unit !== 'string') errors.push(`${where}：単位（unit）がありません（なければ ""）`);
+  });
+
+  if (Array.isArray(p.rounds) && p.rounds.length) {
+    const byGrade = p.rounds.some((r) => r.grades);
+    const key = byGrade ? 'grade' : 'type';
+    const name = byGrade ? '段階' : '型';
+    const have = {};
+    p.questions.forEach((q) => { have[q[key]] = (have[q[key]] || 0) + 1; });
+    const need = {};
+    const totals = p.rounds.map((r) => {
+      const t = r[byGrade ? 'grades' : 'types'] || {};
+      Object.entries(t).forEach(([k, n]) => { need[k] = (need[k] || 0) + n; });
+      return Object.values(t).reduce((a, b) => a + b, 0);
+    });
+    if (new Set(totals).size !== 1) errors.push(`各ラウンドの枠の合計がそろっていません（${totals.join('・')}）`);
+    else oks.push(`各ラウンド ${totals[0]}問ずつ → ${totals[0]}セット`);
+    new Set([...Object.keys(have), ...Object.keys(need)]).forEach((k) => {
+      const h = have[k] || 0, n = need[k] || 0;
+      if (h !== n) errors.push(`${name}「${k}」：問題は${h}問、枠の合計は${n}問で一致していません`);
+    });
+  }
+  if (!errors.length) oks.push(`問題 ${p.questions.length}問、エラーなし`);
+  return { errors, warns, oks };
+}
+
+function show(p, fileName) {
+  pack = p;
+  $('#result').hidden = false;
+  $('#summary').innerHTML = [
+    ['パック', `${esc(p.packName || '')}［${esc(p.pack || '')}］`],
+    ['データの版', esc(p.version || '')],
+    ['問題数', `${(p.questions || []).length}問`],
+    ['元のファイル', esc(fileName)],
+  ].map(([a, b]) => `<tr><th>${a}</th><td>${b}</td></tr>`).join('');
+  const { errors, warns, oks } = check(p);
+  $('#checks').innerHTML =
+    errors.map((t) => `<li class="ng">✕ ${esc(t)}</li>`).join('') +
+    warns.map((t) => `<li>△ ${esc(t)}</li>`).join('') +
+    oks.map((t) => `<li class="ok">○ ${esc(t)}</li>`).join('');
+  $('#download').disabled = errors.length > 0;
+  $('#dl-note').textContent = errors.length ? 'エラーを直してから、もう一度選んでください。' : `kinjishi_${p.pack}.lish として保存されます。`;
+}
+
+async function readFile(file) {
+  try {
+    show(JSON.parse(await file.text()), file.name);
+  } catch (err) {
+    $('#result').hidden = false;
+    $('#summary').innerHTML = '';
+    $('#checks').innerHTML = `<li class="ng">✕ JSON として読み込めませんでした（カンマや括弧の抜けがないか確認）：${esc(err.message)}</li>`;
+    $('#download').disabled = true;
+    $('#dl-note').textContent = '';
+  }
+}
+
+$('#file').addEventListener('change', (e) => e.target.files[0] && readFile(e.target.files[0]));
+const drop = $('#drop');
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('is-over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('is-over'));
+drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('is-over'); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
+
+$('#download').addEventListener('click', () => {
+  if (!pack) return;
+  const blob = new Blob([encodeLish(pack)], { type: 'application/octet-stream' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `kinjishi_${pack.pack}.lish`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+</script>
+</body>
+</html>

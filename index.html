@@ -13,10 +13,26 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="img/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
-<link rel="preload" href="fonts/ZenAntique-subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/ZenAntique-Regular.woff" as="font" type="font/woff" crossorigin>
 <link rel="preload" href="fonts/BodoniModa-subset.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/app.css">
 <script src="js/app.js" defer></script>
+<script>
+/* 版ずれの自動修復：キャッシュに古い app.js が残り、HTML と食い違ったときは
+   キャッシュを消して1回だけ読み込み直す。APP_VERSION を上げたらここも合わせる */
+window.addEventListener('load', function () {
+  var expected = '0.4.0';
+  if (window.KINJISHI_APP_VERSION === expected) return;
+  try {
+    if (sessionStorage.getItem('kinjishi-heal') === expected) return;
+    sessionStorage.setItem('kinjishi-heal', expected);
+  } catch (e) { return; }
+  var tasks = [];
+  if (window.caches) tasks.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }));
+  if (navigator.serviceWorker) tasks.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.update(); })); }));
+  Promise.all(tasks).catch(function () {}).then(function () { location.reload(); });
+});
+</script>
 </head>
 <body>
 <div id="app">
@@ -115,14 +131,31 @@
     </div>
   </section>
 
+  <!-- パック選択 -->
+  <section class="screen screen-packs" id="screen-packs" data-screen="packs">
+    <header class="bar">
+      <button class="btn btn-text" data-action="title">← 戻る</button>
+      <h2 class="bar-title">パックを選ぶ</h2>
+      <span class="bar-spacer"></span>
+    </header>
+    <div class="sets-body">
+      <ul class="pack-list" id="pack-list"></ul>
+      <div class="pack-import">
+        <button class="btn btn-ghost" data-action="import">＋ パックを読み込む</button>
+        <p class="pack-import-note">BOOTHで購入した問題パック（.lish）を読み込めます。<br>読み込んだパックは、この端末に保存されます。</p>
+      </div>
+    </div>
+  </section>
+
   <!-- セット選択 -->
   <section class="screen screen-sets" id="screen-sets" data-screen="sets">
     <header class="bar">
-      <button class="btn btn-text" data-action="title">← 戻る</button>
+      <button class="btn btn-text" data-action="start">← パック</button>
       <h2 class="bar-title">セットを選ぶ</h2>
       <span class="bar-spacer"></span>
     </header>
     <div class="sets-body">
+      <p class="pack-badge" id="pack-badge"></p>
       <p class="sets-lead">1セット5問。好きなセットを選んでください。</p>
       <div class="sets-grid" id="sets-grid"></div>
     </div>
@@ -205,7 +238,7 @@
       <p class="end-lead">おつかれさまでした。カードで得点を集計しましょう。</p>
       <div class="btn-row">
         <button class="btn btn-gold" data-action="title">タイトルへ戻る</button>
-        <button class="btn btn-ghost" data-action="start">別のセットで遊ぶ</button>
+        <button class="btn btn-ghost" data-action="sets">別のセットで遊ぶ</button>
       </div>
     </div>
   </section>
@@ -221,9 +254,22 @@
       <ul class="settings-list">
         <li><button class="setting" data-action="tutorial"><span>遊び方（チュートリアル）を見る</span><i>›</i></button></li>
         <li><button class="setting" data-action="rulebook"><span>ルールブックを開く</span><i>›</i></button></li>
+        <li><button class="setting" data-action="import"><span>パックを読み込む</span><i>›</i></button></li>
         <li><button class="setting" data-action="reshuffle"><span>問題セットを組み直す</span><i>›</i></button></li>
       </ul>
       <p class="settings-meta" id="settings-meta"></p>
+    </div>
+  </section>
+
+  <!-- ルールブック -->
+  <section class="screen screen-rulebook" id="screen-rulebook" data-screen="rulebook">
+    <header class="bar">
+      <button class="btn btn-text" data-action="rulebook-back">← 戻る</button>
+      <h2 class="bar-title">ルールブック</h2>
+      <span class="bar-spacer"></span>
+    </header>
+    <div class="rulebook-body" id="rulebook-body">
+      <article class="rulebook-page" id="rulebook-page"></article>
     </div>
   </section>
 </div>

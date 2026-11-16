@@ -1,0 +1,4 @@
+pack-sources/
+pack-dist/
+*.lish
+.DS_Store

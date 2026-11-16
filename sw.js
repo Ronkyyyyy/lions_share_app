@@ -1,6 +1,7 @@
 /* オフライン用キャッシュ。アプリ本体を更新したら CACHE_VERSION を上げる */
-const CACHE_VERSION = 'kinjishi-v0.3.0';
-const DATA_URL = 'data/questions.json';
+const CACHE_VERSION = 'kinjishi-v0.4.0';
+const DATA_URL = 'data/demo-pack.json'; // 体験パック（購入パックは端末に保存されるので対象外）
+const RULEBOOK_URL = 'rulebook.md';
 const PRECACHE = [
   './',
   'index.html',
@@ -8,7 +9,8 @@ const PRECACHE = [
   'js/app.js',
   'manifest.webmanifest',
   DATA_URL,
-  'fonts/ZenAntique-subset.woff2',
+  RULEBOOK_URL,
+  'fonts/ZenAntique-Regular.woff',
   'fonts/BodoniModa-subset.woff2',
   'img/lion_gold.svg',
   'img/lion_silver.svg',
@@ -42,8 +44,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // 問題データ：オンラインなら常に最新を取りに行き、キャッシュを置き換える
-  if (url.pathname.endsWith('/' + DATA_URL)) {
+  // 問題データとルールブック：オンラインなら常に最新を取りに行き、キャッシュを置き換える
+  if (url.pathname.endsWith('/' + DATA_URL) || url.pathname.endsWith('/' + RULEBOOK_URL)) {
     event.respondWith(networkFirst(req));
     return;
   }

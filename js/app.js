@@ -3,14 +3,16 @@
 
 (() => {
   const CONFIG = {
-    APP_VERSION: '0.2.1',
-    DATA_URL: 'data/questions.json',
-    RULEBOOK_URL: '',          // 公開先が決まったら URL を入れる（空なら「準備中」と表示）
+    APP_VERSION: '0.4.0',
+    DEMO_URL: 'data/demo-pack.json', // アプリに同梱する体験パック（購入パックは .lish で読み込む）
+    RULEBOOK_URL: '',          // 外部サイトで開きたいときだけ URL を入れる（空ならアプリ内で表示）
+    RULEBOOK_MD: 'rulebook.md', // アプリ内で表示するルールブック（差し替えるだけで更新される）
     ROUNDS: 5,
     REVEAL_THRESHOLD: 0.3,     // 檻の高さの30%を超えて離すと開示
     BORDER_DELAY: 650,         // 確定からボーダー早見表を出すまで（ms）
   };
   const STORE_KEY = 'kinjishi.v1';
+  window.KINJISHI_APP_VERSION = CONFIG.APP_VERSION; // index.html 側で版ずれを検知するため
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -40,16 +42,128 @@
     });
   }
 
-  /* ───── 問題データとセット ───── */
-  let data = null;
-  const byId = new Map();
+  /* ───── 問題パック ───── */
+  // 体験パック（アプリに同梱）と、購入者が読み込んだパック（.lish）を扱う。
+  // 読み込んだパックはこの端末のブラウザに保存する
+  const PACKS_KEY = 'kinjishi.packs.v1';
+  let builtinPack = null;          // 体験パック
+  let data = null;                 // いま遊んでいるパック
+  const byId = new Map();          // いま遊んでいるパックの問題（ID → 問題）
 
-  async function loadData() {
-    const res = await fetch(CONFIG.DATA_URL, { cache: 'no-cache' });
+  function loadImported() {
+    try { return JSON.parse(localStorage.getItem(PACKS_KEY)) || {}; } catch (_) { return {}; }
+  }
+  let imported = loadImported();
+  function saveImported() { localStorage.setItem(PACKS_KEY, JSON.stringify(imported)); } // 容量不足のときは例外を投げる
+
+  async function loadBuiltin() {
+    const res = await fetch(CONFIG.DEMO_URL, { cache: 'no-cache' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    data = await res.json();
+    builtinPack = await res.json();
+  }
+
+  function allPacks() {
+    const list = builtinPack ? [builtinPack] : [];
+    return list.concat(Object.values(imported).sort((a, b) => String(a.pack).localeCompare(String(b.pack))));
+  }
+  function findPack(id) {
+    if (builtinPack && builtinPack.pack === id) return builtinPack;
+    return imported[id] || null;
+  }
+  const isBuiltin = (p) => p === builtinPack;
+
+  // パックごとの記録（組んだセット・プレイ済み・データの版）
+  function packState(p = data) {
+    store.packs = store.packs || {};
+    return (store.packs[p.pack] = store.packs[p.pack] || {});
+  }
+
+  function selectPack(p) {
+    data = p;
     byId.clear();
     data.questions.forEach((q) => byId.set(q.id, q));
+    ensureSets(p);
+  }
+
+  /* ───── .lish（問題パックのファイル）の読み込み ─────
+     中身は「LISH1 <検査値>」の1行目と、ネタバレ防止のために変換した本文。
+     暗号ではなく、ファイルをうっかり開いても正解が読めないようにするためのもの */
+  const LISH_KEY = new TextEncoder().encode("lion's share");
+  const lishMask = (i) => LISH_KEY[i % LISH_KEY.length] ^ ((i * 131 + 7) & 0xff);
+  function fnv1a(bytes) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < bytes.length; i++) { h ^= bytes[i]; h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(16).padStart(8, '0');
+  }
+  function fail(message) { const e = new Error(message); e.user = true; throw e; }
+
+  function decodeLish(text) {
+    const lines = String(text).replace(/\r/g, '').split('\n');
+    const m = /^LISH1 ([0-9a-f]{8})$/.exec((lines[0] || '').trim());
+    if (!m) fail('『近似値の金獅子』のパック（.lish）ではないようです');
+    let bin;
+    try { bin = atob(lines.slice(1).join('').replace(/\s/g, '')); } catch (_) { fail('パックのファイルが壊れています'); }
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i) ^ lishMask(i);
+    if (fnv1a(bytes) !== m[1]) fail('パックのファイルが壊れています');
+    try { return JSON.parse(new TextDecoder().decode(bytes)); } catch (_) { fail('パックのファイルが壊れています'); }
+  }
+
+  function validatePack(p) {
+    if (!p || typeof p.pack !== 'string' || !p.pack) fail('パックIDがありません');
+    if (!Array.isArray(p.questions) || !p.questions.length) fail('問題が入っていません');
+    if (!Array.isArray(p.rounds) || p.rounds.length !== CONFIG.ROUNDS) fail('ラウンドの設定が正しくありません');
+    const ids = new Set();
+    p.questions.forEach((q) => {
+      if (!q || typeof q.id !== 'string' || typeof q.question !== 'string' ||
+          !Number.isSafeInteger(q.answer) || q.answer < 0) fail('問題データに不備があります');
+      if (ids.has(q.id)) fail('問題IDが重複しています');
+      ids.add(q.id);
+    });
+    if (!buildSets(p, false).length) fail('問題セットを組めませんでした');
+  }
+
+  const importInput = document.createElement('input');
+  importInput.type = 'file'; // accept は付けない（iPhone で独自の拡張子が選べなくなるため）
+  importInput.hidden = true;
+  document.body.appendChild(importInput);
+  importInput.addEventListener('change', async () => {
+    const file = importInput.files && importInput.files[0];
+    importInput.value = '';
+    if (!file) return;
+    try {
+      const p = decodeLish(await file.text());
+      validatePack(p);
+      if (builtinPack && builtinPack.pack === p.pack) fail('体験パックと同じIDのパックは読み込めません');
+      const old = imported[p.pack];
+      const label = packLabelOf(p);
+      if (old && old.version === p.version) { toast(`${label}［${p.pack}］は読み込み済みです`); return; }
+      if (old && !(await ask(`${label}［${p.pack}］はすでに読み込まれています。\n新しい版に置き換えますか？\nこのパックのプレイ済みの記録は消えます。`, '置き換える'))) return;
+      imported[p.pack] = p;
+      try { saveImported(); } catch (_) {
+        if (old) imported[p.pack] = old; else delete imported[p.pack];
+        fail('端末の保存領域が足りないため、読み込めませんでした');
+      }
+      ensureSets(p);
+      renderPacks();
+      if (current === 'settings') renderSettingsMeta();
+      toast(`${label}［${p.pack}］を読み込みました`);
+    } catch (err) {
+      console.warn(err);
+      toast(err.user ? err.message : 'パックを読み込めませんでした');
+    }
+  });
+
+  async function deletePack(id) {
+    const p = imported[id];
+    if (!p) return;
+    if (!(await ask(`${packLabelOf(p)}［${id}］をこの端末から削除しますか？\nプレイ済みの記録も消えます。\nもう一度遊ぶときは、パックのファイルを読み込み直してください。`, '削除する'))) return;
+    delete imported[id];
+    try { saveImported(); } catch (_) {}
+    if (store.packs) delete store.packs[id];
+    saveStore();
+    renderPacks();
+    toast('パックを削除しました');
   }
 
   function shuffle(arr) {
@@ -60,41 +174,56 @@
     return arr;
   }
 
-  // ラウンドごとの枠（rounds）に沿って、型ごとにランダムに5問セットへ配分する。
-  // rounds[i].types は「全セット合計で、その枠に何問ずつ入れるか」
-  function buildSets() {
-    const pools = {};
-    data.questions.forEach((q) => { (pools[q.type] = pools[q.type] || []).push(q.id); });
-    Object.values(pools).forEach(shuffle);
-    const columns = data.rounds.map((round) => {
+  // ラウンドごとの枠（rounds）に沿って、ランダムに5問セットへ配分する。
+  // rounds[i].grades（心理／クイズの段階）または rounds[i].types（型）に
+  // 「全セット合計で、その枠に何問ずつ入れるか」を書く。grades があればそちらを優先
+  // p：対象のパック／save：false なら記録せずに組んだ結果だけ返す（読み込み時の確認用）
+  function buildSets(p = data, save = true) {
+    const makePools = (key) => {
+      const pools = {};
+      p.questions.forEach((q) => { (pools[q[key]] = pools[q[key]] || []).push(q.id); });
+      Object.values(pools).forEach(shuffle);
+      return pools;
+    };
+    const byGrade = p.rounds.some((r) => r.grades);
+    const key = byGrade ? 'grade' : 'type';
+    const keyName = byGrade ? '段階' : '型';
+    const pools = makePools(key);
+    const columns = p.rounds.map((round) => {
       const col = [];
-      Object.entries(round.types).forEach(([type, n]) => {
+      Object.entries(round[byGrade ? 'grades' : 'types'] || {}).forEach(([k, n]) => {
         for (let i = 0; i < n; i++) {
-          const id = (pools[type] || []).pop();
+          const id = (pools[k] || []).pop();
           if (id) col.push(id);
-          else console.warn(`枠「${round.label}」：型「${type}」の問題が足りません`);
+          else console.warn(`枠「${round.label}」：${keyName}「${k}」の問題が足りません`);
         }
       });
       return shuffle(col);
     });
-    Object.entries(pools).forEach(([type, rest]) => {
-      if (rest.length) console.warn(`型「${type}」の問題が ${rest.length} 問余っています（枠の内訳と数が一致していません）`);
+    Object.entries(pools).forEach(([k, rest]) => {
+      if (rest.length) console.warn(`${keyName}「${k}」の問題が ${rest.length} 問余っています（枠の内訳と数が一致していません）`);
     });
-    const count = Math.min(...columns.map((c) => c.length));
+    const count = columns.length ? Math.min(...columns.map((c) => c.length)) : 0;
     if (columns.some((c) => c.length !== count)) console.warn('枠ごとの問題数がそろっていません');
     const sets = [];
     for (let s = 0; s < count; s++) sets.push(columns.map((c) => c[s]));
-    store.sets = sets;
-    store.played = [];
-    store.dataVersion = data.version;
-    saveStore();
+    if (save) {
+      const st = packState(p);
+      st.sets = sets;
+      st.played = [];
+      st.dataVersion = p.version;
+      saveStore();
+    }
+    return sets;
   }
 
-  function ensureSets() {
-    const ok = store.dataVersion === data.version &&
-      Array.isArray(store.sets) && store.sets.length > 0 &&
-      store.sets.every((s) => s.length === CONFIG.ROUNDS && s.every((id) => byId.has(id)));
-    if (!ok) buildSets();
+  function ensureSets(p = data) {
+    const st = packState(p);
+    const ids = new Set(p.questions.map((q) => q.id));
+    const ok = st.dataVersion === p.version &&
+      Array.isArray(st.sets) && st.sets.length > 0 &&
+      st.sets.every((s) => s.length === CONFIG.ROUNDS && s.every((id) => ids.has(id)));
+    if (!ok) buildSets(p);
   }
 
   function formatAsOf(asOf) {
@@ -131,9 +260,71 @@
     });
   }
 
-  function openRulebook() {
-    if (CONFIG.RULEBOOK_URL) window.open(CONFIG.RULEBOOK_URL, '_blank', 'noopener');
-    else toast('ルールブックは準備中です');
+  /* ───── ルールブック（rulebook.md をアプリ内で表示） ───── */
+  let rbReturn = 'title';
+  let rbLoaded = false;
+
+  async function openRulebook() {
+    if (CONFIG.RULEBOOK_URL) { window.open(CONFIG.RULEBOOK_URL, '_blank', 'noopener'); return; }
+    rbReturn = current && current !== 'rulebook' ? current : 'title';
+    show('rulebook');
+    el.rbBody.scrollTop = 0;
+    if (rbLoaded) return;
+    el.rbPage.innerHTML = '<p class="rb-status">読み込み中…</p>';
+    try {
+      const res = await fetch(CONFIG.RULEBOOK_MD, { cache: 'no-cache' });
+      if (!res.ok) throw new Error(res.status);
+      el.rbPage.innerHTML = mdToHtml(await res.text());
+      rbLoaded = true;
+    } catch (err) {
+      el.rbPage.innerHTML = '<p class="rb-status">ルールブックを読み込めませんでした。<br>一度オンラインで開くと、次からはオフラインでも読めます。</p>';
+    }
+  }
+
+  // ルールブック用の軽い Markdown 変換。
+  // 対応：見出し（#〜####）、段落、箇条書き（- / 1.、字下げで入れ子）、**太字**、_斜体_、`コード`、区切り線（---）
+  // Obsidian のリンク [[名前]] は文字だけ残す
+  function mdToHtml(md) {
+    const inline = (t) => escapeHtml(t)
+      .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (m, a, b) => b || a)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .replace(/(^|[^\w])_(.+?)_(?=[^\w]|$)/g, '$1<em>$2</em>');
+    const out = [];
+    const lists = []; // { type: 'ul' | 'ol', indent }
+    let para = [];
+    const flushPara = () => { if (para.length) { out.push(`<p>${inline(para.join(''))}</p>`); para = []; } };
+    const closeList = () => { const l = lists.pop(); out.push(`</li></${l.type}>`); };
+    const closeLists = (indent) => { while (lists.length && lists[lists.length - 1].indent > indent) closeList(); };
+
+    md.replace(/\r\n?/g, '\n').split('\n').forEach((raw) => {
+      const line = raw.replace(/\t/g, '    ');
+      if (!line.trim()) { flushPara(); closeLists(-1); return; }
+      let m;
+      if ((m = /^(#{1,4})\s+(.*)$/.exec(line))) {
+        flushPara(); closeLists(-1);
+        const lv = m[1].length + 1;
+        out.push(`<h${lv}>${inline(m[2])}</h${lv}>`);
+        return;
+      }
+      if (/^\s*(-{3,}|\*{3,})\s*$/.test(line)) { flushPara(); closeLists(-1); out.push('<hr>'); return; }
+      if ((m = /^(\s*)([-*+]|\d+\.)\s+(.*)$/.exec(line))) {
+        flushPara();
+        const indent = m[1].length;
+        const type = /\d/.test(m[2]) ? 'ol' : 'ul';
+        closeLists(indent);
+        const top = lists[lists.length - 1];
+        if (top && top.indent === indent && top.type !== type) closeList();
+        const now = lists[lists.length - 1];
+        if (now && now.indent === indent) out.push(`</li><li>${inline(m[3])}`);
+        else { lists.push({ type, indent }); out.push(`<${type}><li>${inline(m[3])}`); }
+        return;
+      }
+      if (lists.length) { out.push(inline(' ' + line.trim())); return; } // 箇条書きの続きの行
+      para.push(line.trim());
+    });
+    flushPara(); closeLists(-1);
+    return out.join('');
   }
 
   /* ───── チュートリアル ───── */
@@ -165,8 +356,10 @@
   /* ───── セット選択 ───── */
   const setsGrid = $('#sets-grid');
   function renderSets() {
-    const played = store.played || [];
-    setsGrid.innerHTML = store.sets.map((_, i) => `
+    const st = packState();
+    const played = st.played || [];
+    renderPackBadge();
+    setsGrid.innerHTML = st.sets.map((_, i) => `
       <button class="set-btn${played[i] ? ' is-played' : ''}" data-set="${i}">
         <span class="lion" data-lion="${played[i] ? 'bronze' : 'gold'}"></span>
         <span class="set-name">セット <span class="set-no">${i + 1}</span></span>
@@ -179,6 +372,43 @@
     if (b) startGame(Number(b.dataset.set));
   });
 
+  /* ───── パック選択 ───── */
+  const packList = $('#pack-list');
+  function renderPacks() {
+    const packs = allPacks();
+    packList.innerHTML = packs.map((p) => {
+      ensureSets(p);
+      const st = packState(p);
+      const total = st.sets.length;
+      const done = (st.played || []).filter(Boolean).length;
+      const label = escapeHtml(packLabelOf(p));
+      const id = escapeHtml(p.pack);
+      return `
+      <li class="pack-card${isBuiltin(p) ? ' is-builtin' : ''}">
+        <button class="pack-main" data-pack="${id}">
+          <span class="lion" data-lion="${isBuiltin(p) ? 'silver' : 'gold'}"></span>
+          <span class="pack-text">
+            <span class="pack-title">${label}<span class="pack-card-id">${id}</span></span>
+            <span class="pack-sub">${p.questions.length}問・${total}セット・プレイ済み ${done}／${total}</span>
+          </span>
+        </button>
+        ${isBuiltin(p) ? '' : `<button class="pack-del" data-del="${id}" aria-label="${label}を削除">削除</button>`}
+      </li>`;
+    }).join('') || '<li class="pack-empty">遊べるパックがありません。パックを読み込んでください。</li>';
+    mountLions(packList);
+  }
+  packList.addEventListener('click', (e) => {
+    const del = e.target.closest('[data-del]');
+    if (del) { deletePack(del.dataset.del); return; }
+    const b = e.target.closest('[data-pack]');
+    if (!b) return;
+    const p = findPack(b.dataset.pack);
+    if (!p) return;
+    selectPack(p);
+    renderSets();
+    show('sets');
+  });
+
   /* ───── ゲーム ───── */
   const el = {
     frame: $('#frame'),
@@ -187,6 +417,8 @@
     plateInner: $('#plate .plate-inner'),
     plateQ: $('#plate-q'),
     plateAsof: $('#plate-asof'),
+    rbBody: $('#rulebook-body'),
+    rbPage: $('#rulebook-page'),
     plateSource: $('#plate-source'),
     knob: $('#knob'),
     hint: $('#knob-hint'),
@@ -196,7 +428,6 @@
     answerAsof: $('#answer-asof'),
     num: $('#answer-num'),
     note: $('#answer-note'),
-    answerSource: $('#answer-source'),
     shine: $('#shine'),
     borders: $('#borders'),
     rangeSilver: $('#range-silver'),
@@ -240,13 +471,13 @@
 
   function loadRound() {
     cancelAll();
-    const q = byId.get(store.sets[G.set][G.round]);
+    const q = byId.get(packState().sets[G.set][G.round]);
     G.q = q;
     G.phase = 'idle';
     G.viaKeyboard = false;
     G.slots = null;
 
-    el.roundSet.textContent = `セット${G.set + 1}`;
+    el.roundSet.textContent = `${packLabel()}・セット${G.set + 1}`;
     el.roundCur.textContent = G.round + 1;
     el.roundTotal.textContent = CONFIG.ROUNDS;
 
@@ -254,9 +485,8 @@
     const asOf = formatAsOf(q.asOf);
     el.plateQ.textContent = q.question;
     el.plateAsof.textContent = asOf;
-    el.plateSource.textContent = q.source || '';
+    if (el.plateSource) el.plateSource.textContent = q.source || ''; // 古い index.html でも止まらないように
     el.plate.classList.toggle('has-source', !!q.source);
-    el.answerSource.textContent = q.source || '';
     el.answerQText.textContent = q.question;
     el.answerAsof.textContent = asOf;
     el.plateInner.style.visibility = '';
@@ -544,10 +774,11 @@
 
   function endGame() {
     cancelAll();
-    store.played = store.played || [];
-    store.played[G.set] = true;
+    const st = packState();
+    st.played = st.played || [];
+    st.played[G.set] = true;
     saveStore();
-    $('#end-set').textContent = `セット${G.set + 1}`;
+    $('#end-set').textContent = `${packLabel()}・セット${G.set + 1}`;
     show('end');
   }
 
@@ -559,9 +790,12 @@
 
   /* ───── 操作の振り分け ───── */
   const actions = {
-    start() { renderSets(); show('sets'); },
+    start() { renderPacks(); show('packs'); },
+    sets() { renderSets(); show('sets'); },
+    import() { importInput.click(); },
     title() { if (current === 'game') leaveGame(); else show('title'); },
     rulebook: openRulebook,
+    'rulebook-back'() { show(rbReturn); },
     settings() { renderSettingsMeta(); show('settings'); },
     tutorial() { openTutorial('settings'); },
     'tut-next'() {
@@ -574,8 +808,8 @@
     retry() { if (G.phase !== 'idle' && G.phase !== 'dragging') loadRound(); },
     next: nextRound,
     async reshuffle() {
-      if (await ask('問題セットを組み直しますか？\nプレイ済みの記録も消えます。', '組み直す')) {
-        buildSets();
+      if (await ask('すべてのパックの問題セットを組み直しますか？\nプレイ済みの記録も消えます。', '組み直す')) {
+        allPacks().forEach((p) => buildSets(p));
         renderSettingsMeta();
         toast('問題セットを組み直しました');
       }
@@ -588,8 +822,21 @@
   });
 
   function renderSettingsMeta() {
+    const packs = allPacks().map((p) => `${escapeHtml(packLabelOf(p))}［${escapeHtml(p.pack)}］ ${escapeHtml(p.version || '')}`);
     $('#settings-meta').innerHTML =
-      `問題データ ${escapeHtml(data.version)}（${data.questions.length}問・${store.sets.length}セット）<br>アプリ v${CONFIG.APP_VERSION}`;
+      `遊べるパック<br>${packs.join('<br>') || 'なし'}<br>アプリ v${CONFIG.APP_VERSION}`;
+  }
+
+  /* ───── 問題パックの表示 ───── */
+  // パックの packName（例：基本パック）と pack（例：A00）を画面に出す
+  const packLabelOf = (p) => (p && (p.packName || p.pack)) || '';
+  const packLabel = () => packLabelOf(data);
+  function renderPackBadge() {
+    const badge = $('#pack-badge');
+    if (!badge || !data) return;
+    badge.innerHTML =
+      `<span class="pack-name">${escapeHtml(packLabel())}</span>` +
+      (data.pack ? `<span class="pack-id">${escapeHtml(data.pack)}</span>` : '');
   }
 
   /* ───── 画面サイズの変化 ───── */
@@ -628,16 +875,17 @@
   /* ───── 起動 ───── */
   async function init() {
     mountLions();
+    // 0.3 系までの記録（パックが1つだった頃の形）は使わない
+    if (store.sets || store.played || store.dataVersion) {
+      delete store.sets; delete store.played; delete store.dataVersion;
+      saveStore();
+    }
     try {
-      await loadData();
+      await loadBuiltin();
     } catch (err) {
       console.error(err);
-      show('title');
-      toast('問題データを読み込めませんでした');
-      $('[data-action="start"]').disabled = true;
-      return;
+      if (!Object.keys(imported).length) toast('体験パックを読み込めませんでした');
     }
-    ensureSets();
     if (!store.tutorialDone) openTutorial('title');
     else show('title');
   }
